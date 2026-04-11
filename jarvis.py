@@ -1,24 +1,26 @@
 """
 ╔══════════════════════════════════════════════════════════════╗
 ║                   J.A.R.V.I.S  PROTOTYPE                     ║
-║            - TWO-STAGE STATE MACHINE EDITION -               ║
+║            - STARK INTELLIGENCE & HQ AUDIO -                 ║
 ╚══════════════════════════════════════════════════════════════╝
 """
 
-import sounddevice as sd
-import webbrowser
-import time
-import threading
-import sys
 import os
 import queue
 import json
 import requests
 import subprocess
+import time
+import threading
+import sys
+import webbrowser
 from bs4 import BeautifulSoup
-import winsound
 import psutil
 from dotenv import load_dotenv
+import sounddevice as sd
+import numpy as np
+from pydub import AudioSegment
+from rapidfuzz import fuzz
 
 load_dotenv()
 
@@ -59,117 +61,101 @@ def log(tag: str, message: str, color: str = CYAN) -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# GERAÇÃO DE VOZ ELEVENLABS E CACHE OFFLINE
+# MOTOR DE ÁUDIO HIGH-QUALITY (sounddevice + pydub)
 # ─────────────────────────────────────────────────────────────────────────────
 
-VOICE_AGUARDE_FILE = "voz_aguarde.mp3"
-VOICE_DIA = "voz_dia.mp3"
-VOICE_TARDE = "voz_tarde.mp3"
-VOICE_NOITE = "voz_noite.mp3"
+def _reproduzir_audio(segment: AudioSegment):
+    """Reproduz um AudioSegment do pydub usando sounddevice sem latência."""
+    try:
+        # Garante que o áudio está no formato correto para o sounddevice
+        samples = np.array(segment.get_array_of_samples())
+        
+        # Converte para float32 e normaliza
+        if segment.sample_width == 2:
+            samples = samples.astype(np.float32) / 32768.0
+        elif segment.sample_width == 4:
+            samples = samples.astype(np.float32) / 2147483648.0
+            
+        # Ajusta canais
+        if segment.channels == 2:
+            samples = samples.reshape((-1, 2))
+            
+        sd.play(samples, segment.frame_rate)
+        sd.wait() # Aguarda o fim da reprodução
+    except Exception as e:
+        log("AUDIO_ERR", f"Falha na reprodução: {e}", RED)
 
-TEXTO_AGUARDE = "Acessando os servidores da U O L. Buscando atualizações sobre política e mercado financeiro. Um momento."
-TEXTO_DIA = "Bom dia, chefe! Sistemas autorizados e sincronizados. Preparando ambiente de apresentação."
-TEXTO_TARDE = "Boa tarde, chefe! Sistemas autorizados e sincronizados. Preparando ambiente de apresentação."
-TEXTO_NOITE = "Boa noite, chefe! Sistemas autorizados e sincronizados. Preparando ambiente de apresentação."
-
-SAUDACOES_RAPIDAS = [
-    "Pois não, senhor?",
-    "Ao seu dispor, meu chefe.",
-    "Sistemas na escuta. O que o senhor deseja?",
-    "Diga as ordens, meu poderoso."
-]
-VOICE_ATENDIMENTO_FILES = [f"voz_atendimento_{i}.mp3" for i in range(len(SAUDACOES_RAPIDAS))]
-
-def _gerar_voz_elevenlabs(texto: str, filepath: str) -> bool:
+def _gerar_e_tocar_ia(texto: str, caching=False):
+    """Solicita voz à ElevenLabs, aplica melhorias e toca."""
     url = f"https://api.elevenlabs.io/v1/text-to-speech/{ELEVENLABS_VOICE_ID}"
     headers = {
         "Accept": "audio/mpeg",
         "Content-Type": "application/json",
         "xi-api-key": ELEVENLABS_API_KEY
     }
-    data = {"text": texto, "model_id": "eleven_multilingual_v2", "voice_settings": {"stability": 0.5, "similarity_boost": 0.8}}
+    # Settings para voz estilo Stark (mais firme/estável)
+    data = {
+        "text": texto,
+        "model_id": "eleven_multilingual_v2",
+        "voice_settings": {
+            "stability": 0.65, 
+            "similarity_boost": 0.85,
+            "style": 0.0,
+            "use_speaker_boost": True
+        }
+    }
+    
     try:
         response = requests.post(url, json=data, headers=headers)
         if response.status_code == 200:
-            with open(filepath, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=1024):
-                    if chunk: f.write(chunk)
+            import io
+            audio_data = io.BytesIO(response.content)
+            seg = AudioSegment.from_file(audio_data, format="mp3")
+            
+            # Aplica fade-in/out suave para evitar 'pops'
+            seg = seg.fade_in(100).fade_out(100)
+            _reproduzir_audio(seg)
             return True
         return False
     except: return False
 
-def _pre_generate_voice() -> None:
-    log("SYS", "Conectando ao núcleo da ElevenLabs. Sintetizando matrizes offline...", YELLOW)
-    # Gera os blocos principais para não ter atraso
-    if not os.path.exists(VOICE_DIA): _gerar_voz_elevenlabs(TEXTO_DIA, VOICE_DIA)
-    if not os.path.exists(VOICE_TARDE): _gerar_voz_elevenlabs(TEXTO_TARDE, VOICE_TARDE)
-    if not os.path.exists(VOICE_NOITE): _gerar_voz_elevenlabs(TEXTO_NOITE, VOICE_NOITE)
-    if not os.path.exists(VOICE_AGUARDE_FILE): _gerar_voz_elevenlabs(TEXTO_AGUARDE, VOICE_AGUARDE_FILE)
-    
-    for i, s in enumerate(SAUDACOES_RAPIDAS):
-        if not os.path.exists(VOICE_ATENDIMENTO_FILES[i]):
-            _gerar_voz_elevenlabs(s, VOICE_ATENDIMENTO_FILES[i])
-    log("SYS", "🗣️ Matrizes prontas e injetadas no Hardware!", GREEN)
-
-def _play_audio_file(path: str) -> None:
-    try:
-        import playsound
-        playsound.playsound(path)
-    except: pass
-
-def falar_dinamico(texto: str) -> None:
-    log("VOICE", f'Falando: "{texto[:60]}..."', MAGENTA)
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    tmp_path = os.path.join(script_dir, f"voz_temp_{int(time.time()*100)}.mp3")
-    
-    if _gerar_voz_elevenlabs(texto, tmp_path):
-        _play_audio_file(tmp_path)
-    
-    try: os.remove(tmp_path)
-    except: pass
+def falar_stark(texto: str):
+    log("JARVIS", f'"{texto[:65]}..."', MAGENTA)
+    _gerar_e_tocar_ia(texto)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# MÓDULOS DE COMANDO
+# MÓDULOS DE COMANDO (TONY STARK TONE)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def tocar_musica() -> None:
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    music_path = os.path.join(script_dir, AUDIO_FILE)
-    if os.path.isfile(music_path):
-        log("MUSIC", "🎵 Soltando som com Fade-Out...", GREEN)
-        try:
-            from pydub import AudioSegment
-            audio = AudioSegment.from_file(music_path, format="wav")
-            audio_cut = audio[2500:6000].fade_out(1500)
-            tmp_musica = os.path.join(script_dir, f"temp_m_{int(time.time())}.wav")
-            audio_cut.export(tmp_musica, format="wav")
-            winsound.PlaySound(tmp_musica, winsound.SND_FILENAME)
-            os.remove(tmp_musica)
-        except Exception as e: 
-            log("MUSIC", f"Erro: {e}", RED)
-
-def module_apresentacao() -> None:
-    log("JARVIS", "MODO APRESENTAÇÃO: INICIADO", YELLOW)
+def module_cheguei():
+    log("JARVIS", "PROTOCOLO DE CHEGADA: ATIVADO", YELLOW)
     try: subprocess.Popen(f'start chrome --app="{URL}" --kiosk', shell=True)
     except: webbrowser.open(URL)
     
     hora = time.localtime().tm_hour
-    log("JARVIS", f"Calculando fuso horário (Hora atual: {hora}h)", "\033[90m")
+    saudacao = "Bem-vindo de volta"
+    if hora < 12: saudacao = "Bom dia"
+    elif hora < 18: saudacao = "Boa tarde"
+    else: saudacao = "Boa noite"
     
-    if hora < 12:
-        _play_audio_file(VOICE_DIA)
-    elif hora < 18:
-        _play_audio_file(VOICE_TARDE)
-    else:
-        _play_audio_file(VOICE_NOITE)
+    msg = f"{saudacao}, chefe. Os sistemas estão prontos. O mundo ainda não acabou, então acho que podemos continuar de onde paramos."
+    falar_stark(msg)
     
-    time.sleep(0.5)
-    tocar_musica()
+    # Música com mixagem melhorada
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    music_path = os.path.join(script_dir, AUDIO_FILE)
+    if os.path.isfile(music_path):
+        try:
+            audio = AudioSegment.from_file(music_path, format="wav")
+            # Corte Stark: 2s a 6s com fade-out cinematográfico
+            audio_cut = audio[2500:6500].fade_in(200).fade_out(1500)
+            _reproduzir_audio(audio_cut)
+        except: pass
 
-def module_noticias() -> None:
-    log("JARVIS", "MODO RADAR: UOL", YELLOW)
-    _play_audio_file(VOICE_AGUARDE_FILE)
+def module_noticias():
+    log("JARVIS", "VARREDURA DE SATÉLITE EM CURSO...", YELLOW)
+    falar_stark("Acessando os servidores do UOL. Vou ver o que o pessoal está aprontando hoje.")
     try:
         response = requests.get('https://www.uol.com.br/', headers={'User-Agent': 'Mozilla'})
         response.encoding = 'utf-8'
@@ -182,219 +168,159 @@ def module_noticias() -> None:
         
         top = filtradas[:3]
         if top:
-            texto = "Chefe, as principais do momento: " + ". ".join(top) + "."
-            falar_dinamico(texto)
+            texto = "Chefe, aqui está o resumo do caos: " + ". ".join(top) + ". Algo mais, ou podemos voltar ao trabalho real?"
+            falar_stark(texto)
         else:
-            falar_dinamico("O radar está limpo. Sem grandes alertas.")
+            falar_stark("Sem notícias relevantes, senhor. O que é bom, significa que ninguém quebrou nada hoje.")
     except:
-        falar_dinamico("Sem comunicação remota com a rede neste momento.")
+        falar_dinamico("Houve uma falha na rede externa. Parece que a internet não está cooperando.")
 
-def module_sistema() -> None:
-    log("JARVIS", "STATUS DO SISTEMA", YELLOW)
+def module_sistema():
+    log("JARVIS", "DIAGNÓSTICO DE HARDWARE", YELLOW)
     try:
         cpu = psutil.cpu_percent(interval=0.5)
         ram = psutil.virtual_memory().percent
         batt_info = psutil.sensors_battery()
-        batt = f"e Bateria em {int(batt_info.percent)} por cento" if batt_info else "na energia direto"
-        falar_dinamico(f"Sistemas normais. Processador em {int(cpu)} por cento. Memória RAM operando com {int(ram)} por cento de uso de dados vitais. {batt}.")
-    except Exception as e:
-         falar_dinamico("Não foi possível acessar a placa mãe.")
+        batt = f"e a bateria está em {int(batt_info.percent)} por cento" if batt_info else "e estamos ligados direto na fonte de energia"
+        falar_stark(f"O processador está em {int(cpu)} por cento, o que é quase nada pra mim. A memória RAM está em {int(ram)} {batt}. Resumindo: estamos voando.")
+    except:
+         falar_stark("Os sensores de hardware estão um pouco instáveis agora.")
 
-def module_trabalho() -> None:
-    log("JARVIS", "ABRINDO VS CODE", YELLOW)
-    falar_dinamico("Preparando seu ambiente de criação chefe.")
-    try: subprocess.Popen("code .", shell=True)
-    except: pass
-
-def module_clima() -> None:
-    log("JARVIS", "METEOROLOGIA", YELLOW)
+def module_clima():
+    log("JARVIS", "PREVISÃO DO TEMPO", YELLOW)
     try:
         loc = requests.get("https://ipinfo.io/json").json()
         lat, lon = loc['loc'].split(',')
         url_tempo = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true"
         tempo = requests.get(url_tempo).json()['current_weather']
-        falar_dinamico(f"Senhor, lá fora temos confortáveis {int(tempo['temperature'])} graus Celsius.")
-    except Exception:
-        falar_dinamico("Falha na varredura climática global.")
+        falar_stark(f"Senhor, lá fora temos {int(tempo['temperature'])} graus Celsius. Se for sair, escolha o terno certo.")
+    except:
+        falar_stark("Os satélites meteorológicos não estão respondendo. Talvez esteja chovendo demais onde eles estão.")
 
-def module_trancar() -> None:
-    log("JARVIS", "TRANCAR SISTEMA", RED)
-    falar_dinamico("Bloqueio ativado. Protegendo perímetros focais.")
+def module_trancar():
+    log("JARVIS", "MODO DE DEFESA ATIVADO", RED)
+    falar_stark("Entendido, senhor. Ativando protocolos de segurança. Ninguém entra, ninguém sai.")
     time.sleep(1)
     os.system("rundll32.exe user32.dll,LockWorkStation")
 
-def module_pesquisa(texto: str) -> None:
+def module_pesquisa(texto: str):
     termo = texto.split("pesquisar sobre")[-1].strip()
-    log("JARVIS", f"PESQUISA: {termo}", YELLOW)
-    falar_dinamico(f"Vasculhando arquivos externos sobre {termo}.")
+    log("JARVIS", f"PESQUISA GLOBAL: {termo}", YELLOW)
+    falar_stark(f"Varrendo a web por informações sobre {termo}. Vou baixar tudo pra você.")
     webbrowser.open(f"https://www.google.com/search?q={termo}")
-
-def module_youtube() -> None:
-    log("JARVIS", "ABRIR YOUTUBE", YELLOW)
-    falar_dinamico("Iniciando a plataforma de vídeos.")
-    webbrowser.open("https://youtube.com")
-
-def module_whatsapp() -> None:
-    log("JARVIS", "ABRIR WHATSAPP", YELLOW)
-    falar_dinamico("Abrindo canal de comunicação primário.")
-    webbrowser.open("https://web.whatsapp.com")
-
-def module_github() -> None:
-    log("JARVIS", "ABRIR GITHUB", YELLOW)
-    falar_dinamico("Acessando repositórios do Git Hub chefe.")
-    webbrowser.open("https://github.com")
-
-def module_acordar() -> None:
-    import random
-    escolhido = random.choice(VOICE_ATENDIMENTO_FILES)
-    log("JARVIS", "MODO ATENDIMENTO ACIONADO (Wake Word)", YELLOW)
-    _play_audio_file(escolhido)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# STATE MACHINE E VOSK INIT
+# INTELIGÊNCIA DE RECONHECIMENTO (FUZZY MATCHING)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def encontrar_comando_similar(texto_ouvido: str):
+    """Usa RapidFuzz para encontrar o comando mais próximo."""
+    comandos = {
+        "jarvis apresentação": module_cheguei,
+        "apresentação": module_cheguei,
+        "noticias": module_noticias,
+        "notícias": module_noticias,
+        "status do sistema": module_sistema,
+        "hora do trabalho": lambda: falar_stark("Abrindo o VS Code. Mãos à obra.") or subprocess.Popen("code .", shell=True),
+        "previsao do tempo": module_clima,
+        "previsão do tempo": module_clima,
+        "trancar sistema": module_trancar,
+        "abrir youtube": lambda: falar_stark("Iniciando o YouTube.") or webbrowser.open("https://youtube.com"),
+        "abrir whatsapp": lambda: falar_stark("WhatsApp Web na tela.") or webbrowser.open("https://web.whatsapp.com"),
+        "abrir github": lambda: falar_stark("Abrindo o GitHub.") or webbrowser.open("https://github.com"),
+        "jarvis liberado": "LIBERAR",
+        "liberado": "LIBERAR"
+    }
+    
+    melhor_score = 0
+    melhor_comando = None
+    
+    for nome, func in comandos.items():
+        score = fuzz.ratio(texto_ouvido, nome)
+        if score > melhor_score:
+            melhor_score = score
+            melhor_comando = (nome, func)
+            
+    if melhor_score > 70:
+        return melhor_comando
+    return None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NÚCLEO DE ESCUTA E ESTADOS
 # ─────────────────────────────────────────────────────────────────────────────
 
 class JarvisStateMachine:
     def __init__(self):
-        log("SYS", "Carregando Cérebro State-Machine...", YELLOW)
-        _pre_generate_voice()
-        
+        log("SYS", "Carregando Motores de Inteligência JARVIS...", YELLOW)
         self.model = vosk.Model(lang="pt")
         self.recognizer = vosk.KaldiRecognizer(self.model, SAMPLE_RATE)
-        
         self.q = queue.Queue()
-        self._is_running = False
-        
         self.is_active = False
         self.active_time = 0.0
 
     def audio_callback(self, indata, frames, time_info, status):
         self.q.put(bytes(indata))
 
-    def run_command(self, func, *args):
-        self.is_active = False 
-        self.recognizer = vosk.KaldiRecognizer(self.model, SAMPLE_RATE)
-        threading.Thread(target=func, args=args, daemon=True).start()
-
     def _process_text(self, text: str):
         text = text.lower().strip()
         if not text: return
 
-        # -----------------------------------------------------------------
-        # ESTÁGIO 1: MODO PASSIVO (Só escuta a palavra "jarvis")
-        # -----------------------------------------------------------------
+        # ESTÁGIO 1: WAKE WORD (Gatilho Fuzzy)
         if not self.is_active:
-             if text == "jarvis":
+             score_ativacao = fuzz.ratio(text, "jarvis")
+             if score_ativacao > 70 or "jarvis" in text:
                  self.is_active = True
                  self.active_time = time.time()
-                 log("JARVIS", "MODO ATIVADO (Ouvindo por 10s)", GREEN)
-                 # Grito de Atendimento customizavel do Wake-Word
-                 self.run_command(module_acordar)
+                 log("JARVIS", "SISTEMA ATIVADO", GREEN)
+                 threading.Thread(target=falar_stark, args=("Sim, senhor. O que deseja?",), daemon=True).start()
              return
 
-        # -----------------------------------------------------------------
-        # ESTÁGIO 2: MODO ATIVO (Escuta comandos na janela de 10 segundos)
-        # -----------------------------------------------------------------
+        # ESTÁGIO 2: COMANDOS
         if time.time() - self.active_time > 10:
-             log("JARVIS", "TIMEOUT. Voltando ao modo Passivo...", "\033[90m")
              self.is_active = False
              return
 
-        log("DEBUG", f"Capturado no Estado Ativo: '{text}'", CYAN)
+        log("DEBUG", f"Capturado: '{text}'", CYAN)
 
-        if text == "jarvis liberado" or text == "liberado":
-             log("JARVIS", "DESATIVADO", "\033[90m")
-             self.is_active = False
-             threading.Thread(target=falar_dinamico, args=("Pode deixar chefe. Descansando as válvulas.",), daemon=True).start()
-             return
+        # Trata Pesquisa (Especial)
+        if "pesquisar sobre" in text:
+            self.is_active = False
+            threading.Thread(target=module_pesquisa, args=(text,), daemon=True).start()
+            return
 
-        # Comandos Diretos
-        if text == "jarvis apresentação" or text == "apresentação":
-            self.run_command(module_apresentacao)
-        
-        elif text == "noticias" or text == "notícias":
-            self.run_command(module_noticias)
-        
-        elif text == "status do sistema":
-            self.run_command(module_sistema)
-            
-        elif text == "hora do trabalho":
-            self.run_command(module_trabalho)
-            
-        elif text == "previsao do tempo" or text == "previsão do tempo":
-            self.run_command(module_clima)
-            
-        elif text == "trancar sistema":
-            self.run_command(module_trancar)
-            
-        elif text.startswith("pesquisar sobre"):
-            self.run_command(module_pesquisa, text)
-            
-        elif text == "abrir youtube":
-            self.run_command(module_youtube)
-            
-        elif text == "abrir whatsapp":
-            self.run_command(module_whatsapp)
-            
-        elif text == "abrir github":
-            self.run_command(module_github)
-            
+        # Busca comando por similaridade
+        match = encontrar_comando_similar(text)
+        if match:
+            nome, acao = match
+            if acao == "LIBERAR":
+                self.is_active = False
+                threading.Thread(target=falar_stark, args=("Claro, senhor. Vou ficar na escuta.",), daemon=True).start()
+            else:
+                self.is_active = False
+                threading.Thread(target=acao, daemon=True).start()
         else:
-             if len(text) > 3:
-                 log("JARVIS", "COMANDO NÃO RECONHECIDO", RED)
-                 self.active_time = time.time() 
-                 threading.Thread(target=falar_dinamico, args=("Chefe, ordem não reconhecida. Pode mandar de novo?",), daemon=True).start()
+            if len(text) > 3:
+                log("JARVIS", "COMANDO NÃO ENTENDIDO", RED)
+                self.active_time = time.time() 
+                falar_stark("Sinto muito, senhor. Há muito ruído ou eu simplesmente não te entendi. Pode repetir?")
 
     def start(self):
-        self._is_running = True
-        print(f"""
-{YELLOW}
-╔══════════════════════════════════════════════════════════════╗
-║              J.A.R.V.I.S  SYSTEM ONLINE                      ║
-║       [ARCH]: STATE MACHINE DIRECTED (Modo Ativo/Passivo)    ║
-║                                                              ║
-║ PARA ACORDAR      : Diga "Jarvis"                            ║
-║ APÓS ACORDAR (10s): Diga o comando                           ║
-║ PARA DISPENSAR    : Diga "Jarvis liberado"                   ║
-║                                                              ║
-║ ============ LISTA DE COMANDOS CRÍTICOS ============         ║
-║ - "Jarvis apresentação" - "noticias"                         ║
-║ - "status do sistema"   - "hora do trabalho"                 ║
-║ - "previsao do tempo"   - "trancar sistema"                  ║
-║ - "pesquisar sobre X"   - "abrir youtube"                    ║
-║ - "abrir whatsapp"      - "abrir github"                     ║
-╚══════════════════════════════════════════════════════════════╝
-{RESET}""")
-        log("MIC", "Modo Passivo Escutando. Diga 'Jarvis' para ativá-lo.", GREEN)
-
+        print(f"\n{YELLOW}{BOLD}Assistant Online (Stark Protocol){RESET}\n")
         try:
-            with sd.RawInputStream(
-                samplerate=SAMPLE_RATE, blocksize=BLOCK_SIZE, device=None,
-                channels=1, dtype="int16", callback=self.audio_callback,
-            ):
-                while self._is_running:
+            with sd.RawInputStream(samplerate=SAMPLE_RATE, blocksize=BLOCK_SIZE, dtype="int16", channels=1, callback=self.audio_callback):
+                while True:
                     if self.is_active and (time.time() - self.active_time > 10):
-                        log("JARVIS", "TIMEOUT DE COMANDO (10s). Retornando a vigília Passiva.", "\033[90m")
                         self.is_active = False
-
-                    if self.q.empty():
-                        time.sleep(0.01)
-                        continue
-                        
-                    data = self.q.get()
-                    if self.recognizer.AcceptWaveform(data):
-                        text = json.loads(self.recognizer.Result()).get("text", "")
-                        if text:
-                            if self.is_active: log("MIC", f"[ATIVO]: {text}", YELLOW) 
-                            else: log("MIC", f"[Passivo]: {text}", "\033[90m")
-                            self._process_text(text)
-                            
+                    
+                    if not self.q.empty():
+                        data = self.q.get()
+                        if self.recognizer.AcceptWaveform(data):
+                            res = json.loads(self.recognizer.Result()).get("text", "")
+                            if res: self._process_text(res)
         except KeyboardInterrupt:
-            print(f"\n{YELLOW}[JARVIS] Ofuscando sistemas. Adeus.{RESET}\n")
             sys.exit(0)
 
-
 if __name__ == "__main__":
-    detector = JarvisStateMachine()
-    detector.start()
+    JarvisStateMachine().start()
