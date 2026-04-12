@@ -28,23 +28,39 @@ body {
 }
 
 .left-panel {
-    flex: 1;
-    border-right: 1px solid var(--accent-glow);
+    flex: 3; /* 75% */
+    border-right: 2px solid var(--accent-glow);
+    position: relative;
+    box-shadow: inset -10px 0 20px rgba(0, 210, 255, 0.05);
 }
 
 .left-panel iframe {
     width: 100%;
     height: 100%;
+    filter: contrast(1.1) brightness(1.1);
+}
+
+/* Glassmorphism Frame Overlay */
+.left-panel::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    border: 1px solid rgba(0, 210, 255, 0.1);
+    box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.3);
 }
 
 .right-panel {
-    width: 450px;
-    background: var(--panel-bg);
-    backdrop-filter: blur(15px);
+    flex: 1; /* 25% approx */
+    min-width: 380px;
+    max-width: 450px;
+    background: linear-gradient(135deg, rgba(10, 20, 30, 0.95) 0%, rgba(5, 10, 20, 0.98) 100%);
+    backdrop-filter: blur(20px);
     display: flex;
     flex-direction: column;
-    padding: 25px;
+    padding: 30px;
     border-left: 1px solid var(--accent-glow);
+    box-shadow: -5px 0 30px rgba(0, 0, 0, 0.5);
 }
 
 .hud-header h1 {

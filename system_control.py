@@ -117,13 +117,13 @@ class SystemControl:
     @staticmethod
     def open_professional_window(url):
         """
-        Opens a URL in a professional, standalone 'App Mode' window.
-        Removes toolbars, address bars, and bookmarks for a clean software feel.
+        Opens a URL in a professional, standalone 'Kiosk Mode' (Full Screen).
+        Removes all browser UI (tabs, bars, buttons) for a cinematic experience.
         """
         try:
-            # Using Edge with --app flag (standard on Windows)
-            # --start-maximized ensures it looks like a professional full-screen app
-            command = f'start msedge --app="{url}" --start-maximized'
+            # Using Edge with --kiosk flag for absolute full-screen
+            # --edge-kiosk-type=fullscreen ensures it uses the entire monitor
+            command = f'start msedge --kiosk "{url}" --edge-kiosk-type=fullscreen'
             subprocess.Popen(command, shell=True)
         except Exception as e:
             print(f"Erro ao abrir janela profissional: {e}")

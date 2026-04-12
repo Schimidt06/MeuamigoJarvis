@@ -248,11 +248,10 @@ class CommandHandler:
         # 2. Then, the music starts (non-blocking)
         self.sc.play_greeting_music()
         
-        # 3. Open interfaces in professional App Mode
+        # 3. Open the Unified Master Hub (HUD + Portfolio) in App Mode
         import os
         hud_port = os.getenv('HUD_PORT', 5000)
         self.sc.open_professional_window(f"http://localhost:{hud_port}")
-        self.sc.open_professional_window("https://landing-page-schimidt.vercel.app/")
 
     def deactivate(self):
         self.is_active = False
