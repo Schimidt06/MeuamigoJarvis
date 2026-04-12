@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P.I.T.O.C.O Vision Hub</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="hud-container">
+        <header>
+            <div class="system-title">P.I.T.O.C.O <span>STARK INDUSTRIES v2.0</span></div>
+            <div class="status-bar">
+                <div id="status-text">ESCULtando...</div>
+                <div class="blink-dot"></div>
+            </div>
+        </header>
+
+        <aside class="command-list">
+            <div class="sidebar-title">PROTOCOLOS ATIVOS</div>
+            <ul>
+                <li><span class="cmd">Pitoco Cheguei</span> - Ativar Hub</li>
+                <li><span class="cmd">Notícias</span> - Radar Global</li>
+                <li><span class="cmd">Status do Sistema</span> - Hardware</li>
+                <li><span class="cmd">Hora do Trabalho</span> - Mod Dev</li>
+                <li><span class="cmd">Previsão do Tempo</span> - Satélite</li>
+                <li><span class="cmd">Trancar Sistema</span> - Defesa</li>
+                <li><span class="cmd">Pesquisar sobre...</span> - Web</li>
+                <li><span class="cmd">Abrir YouTube</span> - Media</li>
+            </ul>
+        </aside>
+
+        <main>
+            <!-- A Rede Neural será desenhada aqui -->
+            <canvas id="neural-canvas"></canvas>
+            
+            <div class="central-core">
+                <div class="core-ring outer"></div>
+                <div class="core-ring inner"></div>
+                <div class="core-icon">🦾</div>
+            </div>
+        </main>
+
+        <nav class="controls">
+            <button id="btn-mute" class="glass-btn">
+                <span class="icon">🎤</span>
+                <span class="label">MUTAR</span>
+            </button>
+            <button id="btn-camera" class="glass-btn">
+                <span class="icon">📷</span>
+                <span class="label">CÂMERA</span>
+            </button>
+            <button id="btn-info" class="glass-btn">
+                <span class="icon">⚡</span>
+                <span class="label">DADOS</span>
+            </button>
+        </nav>
+
+        <footer>
+            <div class="cpu-usage">CPU: <span id="cpu-val">0%</span></div>
+            <div class="ram-usage">RAM: <span id="ram-val">0%</span></div>
+        </footer>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
