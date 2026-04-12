@@ -4,6 +4,7 @@ from system_control import SystemControl
 from datetime import datetime
 import requests
 import geocoder
+from colorama import Fore, Style
 
 class CommandHandler:
     def __init__(self, voice_engine):
@@ -14,7 +15,9 @@ class CommandHandler:
 
     def handle(self, text):
         text = text.lower()
-        print(f"DEBUG: Handling command: {text}")
+        # The print is now handled with colors in jarvis.py, 
+        # but we can keep a colored debug here if called elsewhere
+        # print(f"{Fore.CYAN}[DEBUG]{Fore.WHITE} Processando: {text}")
 
         # Basic Simple Matching for Activation - Lenient (He hears "cheguei" even if "jarvis" is clipped)
         if any(w in text for w in ["jarvis cheguei", "cheguei", "chega", "chegue", "jaime cheguei", "jarbas cheguei"]):
@@ -30,6 +33,19 @@ class CommandHandler:
 
         self.last_command_time = datetime.now()
         found_command = False
+
+        # --- RESPOND TO BEING CALLED ---
+        # --- RESPOND TO BEING CALLED ---
+        if text.strip() in ["jarvis", "já vi", "jardim", "está aí", "estou aqui", "oi jarvis", "ouça"]:
+            respostas = [
+                "Às suas ordens, senhor. O que deseja?",
+                "Sempre online, senhor. Como posso ajudar?",
+                "Protocolos ativos. Aguardando seus comandos, chefe.",
+                "Sim, senhor. Todos os sistemas prontos para sua instrução."
+            ]
+            import random
+            self.ve.falar_stark(random.choice(respostas))
+            return
 
         # --- COMMAND SYSTEM (Keyword-Based Matching for Flexibility) ---
 
@@ -167,14 +183,23 @@ class CommandHandler:
             webbrowser.open("https://www.youtube.com")
             found_command = True
 
-        # 11. Gamer Mode
-        elif "game" in text or "jogo" in text:
-            self.ve.falar_stark("Modo jogo ativado. Otimizando processadores para renderização.")
-            self.sc.close_all_apps()
-            self.sc.open_app(r"C:\Users\jpsch\OneDrive\Área de Trabalho")
+        # 12. Context Projects
+        elif "starlink" in text:
+            self.ve.falar_stark("Acessando dados da rede Starlink. Verificando conectividade global.")
+            webbrowser.open("https://www.starlink.com/") # Or a specific project page if known
             found_command = True
 
-        # 12. Utilities
+        elif "santo antônio" in text or "padaria" in text:
+            self.ve.falar_stark("Abrindo o sistema da Padaria Santo Antônio, senhor.")
+            webbrowser.open("https://padaria-santo-antonio.vercel.app/")
+            found_command = True
+
+        elif "sukhafé" in text or "café" in text:
+            self.ve.falar_stark("Iniciando interface da Sukhafé. O aroma digital está excelente.")
+            webbrowser.open("https://sukhafe.vercel.app/")
+            found_command = True
+
+        # 13. Utilities
         elif "print" in text or "screenshot" in text:
             f = self.sc.take_screenshot()
             self.ve.falar_stark(f"Captura de tela salva como {f}.")
@@ -186,8 +211,16 @@ class CommandHandler:
             found_command = True
 
         # Catch-all
+        # Catch-all
         if not found_command:
-            self.ve.falar_stark("Não entendi completamente o comando, chefe. Pode repetir?")
+            respostas_unk = [
+                "Não entendi completamente o comando, chefe. Pode repetir?",
+                "Os dados captados estão imprecisos. Poderia reformular a instrução?",
+                "Desculpe, senhor, não tenho esse comando no meu banco de dados atual. Deseja que eu pesquise no Google?",
+                "Comando não reconhecido. Estou pronto para outras tarefas se desejar."
+            ]
+            import random
+            self.ve.falar_stark(random.choice(respostas_unk))
 
     def handle_weather(self):
         try:
@@ -208,11 +241,18 @@ class CommandHandler:
     def activate(self):
         self.is_active = True
         self.last_command_time = datetime.now()
-        # Responsive feedback + Cinematic Music Snippet (sec 2-6)
-        self.sc.play_greeting_music()
-        webbrowser.open("https://landing-page-schimidt.vercel.app/")
-        webbrowser.open(f"http://localhost:{os.getenv('HUD_PORT', 5000)}")
+        
+        # 1. First, JARVIS speaks
         self.ve.falar_stark("Bem-vindo de volta, chefe. Todos os sistemas estão operacionais.")
+        
+        # 2. Then, the music starts (non-blocking)
+        self.sc.play_greeting_music()
+        
+        # 3. Open interfaces in professional App Mode
+        import os
+        hud_port = os.getenv('HUD_PORT', 5000)
+        self.sc.open_professional_window(f"http://localhost:{hud_port}")
+        self.sc.open_professional_window("https://landing-page-schimidt.vercel.app/")
 
     def deactivate(self):
         self.is_active = False

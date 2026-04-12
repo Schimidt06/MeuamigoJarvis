@@ -115,6 +115,23 @@ class SystemControl:
             print(f"Erro ao tocar trilha de ativação: {e}")
 
     @staticmethod
+    def open_professional_window(url):
+        """
+        Opens a URL in a professional, standalone 'App Mode' window.
+        Removes toolbars, address bars, and bookmarks for a clean software feel.
+        """
+        try:
+            # Using Edge with --app flag (standard on Windows)
+            # --start-maximized ensures it looks like a professional full-screen app
+            command = f'start msedge --app="{url}" --start-maximized'
+            subprocess.Popen(command, shell=True)
+        except Exception as e:
+            print(f"Erro ao abrir janela profissional: {e}")
+            # Fallback to standard browser if something goes wrong
+            import webbrowser
+            webbrowser.open(url)
+
+    @staticmethod
     def close_all_apps():
         # Optional: Close non-essential apps for Game Mode
         apps_to_close = ["chrome", "discord", "spotify", "code"]
