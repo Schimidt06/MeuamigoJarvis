@@ -1,38 +1,9 @@
-# Python
+.env
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Virtual environments
-venv/
-ENV/
-
-# OS specific
-.DS_Store
-Thumbs.db
-
-# Audio files (Avoid pushing large generated voice caches & temp files)
+*.pyc
+voz.mp3
+models/
+screenshot_*.png
+*.zip
 *.mp3
 *.wav
-!ACDC*.wav
-
-# Secrets
-.env
-.env.local

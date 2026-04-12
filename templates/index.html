@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JARVIS HUD</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@300;400&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- User Landing Page -->
+        <div class="left-panel">
+            <iframe src="{{ landing_url }}" frameborder="0"></iframe>
+        </div>
+
+        <!-- JARVIS HUD -->
+        <div class="right-panel">
+            <div class="hud-header">
+                <h1>J.A.R.V.I.S.</h1>
+                <div class="status-indicator online">SYSTEM ONLINE</div>
+            </div>
+
+            <div class="audio-visualizer">
+                <div class="bars" id="audio-bars">
+                    <span></span><span></span><span></span><span></span><span></span>
+                    <span></span><span></span><span></span><span></span><span></span>
+                </div>
+                <p class="voice-status">LISTENING...</p>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <label>CPU</label>
+                    <div class="progress-container">
+                        <div id="cpu-bar" class="progress-bar" style="width: 0%"></div>
+                    </div>
+                    <span id="cpu-val">0%</span>
+                </div>
+                <div class="stat-card">
+                    <label>RAM</label>
+                    <div class="progress-container">
+                        <div id="ram-bar" class="progress-bar" style="width: 0%"></div>
+                    </div>
+                    <span id="ram-val">0%</span>
+                </div>
+                <div class="stat-card">
+                    <label>BATTERY</label>
+                    <div class="progress-container">
+                        <div id="bat-bar" class="progress-bar" style="width: 0%"></div>
+                    </div>
+                    <span id="bat-val">0%</span>
+                </div>
+            </div>
+
+            <div class="command-menu">
+                <h3>CORE COMMANDS</h3>
+                <div class="command-grid">
+                    <div class="cmd-item">"clima local"</div>
+                    <div class="cmd-item">"status do sistema"</div>
+                    <div class="cmd-item">"hora do trabalho"</div>
+                    <div class="cmd-item">"abrir youtube"</div>
+                    <div class="cmd-item">"minimizar tudo"</div>
+                    <div class="cmd-item">"tirar print"</div>
+                    <div class="cmd-item">"abrir downloads"</div>
+                    <div class="cmd-item">"abrir whatsapp"</div>
+                    <div class="cmd-item">"modo foco"</div>
+                    <div class="cmd-item">"modo relaxar"</div>
+                    <div class="cmd-item">"hora do game"</div>
+                    <div class="cmd-item">"jarvis liberado"</div>
+                </div>
+            </div>
+
+            <div class="footer">
+                <p>STARK INDUSTRIES - OS v2.0</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
