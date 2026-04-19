@@ -159,33 +159,49 @@ body {
     transition: opacity 0.4s;
 }
 
-.command-menu h3 {
-    font-size: 0.75rem;
+.history-panel {
+    flex-grow: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 16px;
+}
+
+.history-panel h3 {
+    font-size: 0.65rem;
     letter-spacing: 2px;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
     opacity: 0.5;
 }
 
-.command-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
+#history-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow-y: auto;
     flex-grow: 1;
 }
 
-.cmd-item {
-    font-size: 0.8rem;
-    padding: 10px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 4px;
-    transition: 0.3s;
+#history-list li {
+    font-size: 0.72rem;
+    padding: 7px 10px;
+    background: rgba(0, 210, 255, 0.04);
+    border-left: 2px solid rgba(0, 210, 255, 0.3);
+    border-radius: 2px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    animation: fadeIn 0.4s ease;
 }
 
-.cmd-item:hover {
-    background: rgba(0, 210, 255, 0.1);
-    border-color: var(--accent-color);
-    color: var(--accent-color);
+#history-list li .h-time  { opacity: 0.4; font-size: 0.6rem; }
+#history-list li .h-cmd   { color: var(--text-color); }
+#history-list li .h-reply { color: var(--accent-color); opacity: 0.8; font-style: italic; }
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 
 .footer {

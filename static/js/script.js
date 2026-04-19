@@ -35,6 +35,23 @@ socket.on("state_update", (data) => {
     bars.forEach(b => b.style.background = STATE_COLORS[state] || "#00d2ff");
 });
 
+// History update
+socket.on("history_update", (data) => {
+    const list = document.getElementById("history-list");
+    list.innerHTML = "";
+    data.history.forEach(item => {
+        const li = document.createElement("li");
+        const time = item.ts.split(" ")[1].substring(0, 5);
+        li.innerHTML = `
+            <span class="h-time">${time} · ${item.intent}</span>
+            <span class="h-cmd">${item.text}</span>
+            <span class="h-reply">${item.response.substring(0, 80)}${item.response.length > 80 ? "…" : ""}</span>
+        `;
+        list.appendChild(li);
+    });
+    list.scrollTop = list.scrollHeight;
+});
+
 // Response display with typewriter effect
 socket.on("response_text", (data) => {
     const el = document.getElementById("last-response");
