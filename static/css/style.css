@@ -147,6 +147,18 @@ body {
     font-size: 1rem;
 }
 
+.last-response {
+    font-size: 0.8rem;
+    color: var(--accent-color);
+    min-height: 36px;
+    margin-bottom: 20px;
+    padding: 8px 12px;
+    border-left: 2px solid var(--accent-color);
+    opacity: 0.85;
+    font-style: italic;
+    transition: opacity 0.4s;
+}
+
 .command-menu h3 {
     font-size: 0.75rem;
     letter-spacing: 2px;

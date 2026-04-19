@@ -1,6 +1,8 @@
 import os
 import json
 import queue
+import threading
+import time
 import sounddevice as sd
 from vosk import Model, KaldiRecognizer
 from dotenv import load_dotenv
@@ -19,8 +21,6 @@ class VoiceEngine:
         self.q = queue.Queue()
         self.model = None
         self.recognizer = None
-        self.grammar = '["jarvis", "cheguei", "liberado", "pesquisar", "sobre", "abrir", "youtube", "clima", "local", "trabalho", "status", "sistema", "trancar", "reiniciar", "silêncio", "volume", "minimizar", "tudo", "downloads", "documentos", "bloco", "notas", "calculadora", "vscode", "gerenciador", "tarefas", "github", "whatsapp", "horas", "data", "foco", "relaxar", "game", "print", "limpar", "tela", "[unk]"]'
-        
         self.is_listening = False
         self._ensure_model()
 
@@ -38,15 +38,14 @@ class VoiceEngine:
             os.remove("models/model.zip")
             
         self.model = Model(self.model_path)
-        self.recognizer = KaldiRecognizer(self.model, 16000, self.grammar)
+        self.recognizer = KaldiRecognizer(self.model, 16000)
 
     def falar_stark(self, texto):
-        """
-        Modified: Play audio silently in the background (HEADLESS)
-        using Windows Multimedia API to avoid any player windows.
-        """
         print(f"JARVIS: {texto}")
-        
+        threading.Thread(target=self._tts_and_play, args=(texto,), daemon=True).start()
+
+    def _tts_and_play(self, texto):
+        output_file = os.path.abspath(f"voz_{int(time.time())}.mp3")
         url = f"https://api.elevenlabs.io/v1/text-to-speech/{self.voice_id}"
         headers = {
             "Accept": "audio/mpeg",
@@ -56,22 +55,21 @@ class VoiceEngine:
         data = {
             "text": texto,
             "model_id": "eleven_multilingual_v2",
-            "voice_settings": { "stability": 0.5, "similarity_boost": 0.8 }
+            "voice_settings": {"stability": 0.5, "similarity_boost": 0.8}
         }
-
         try:
             response = requests.post(url, json=data, headers=headers)
             if response.status_code == 200:
-                output_file = os.path.abspath("voz.mp3")
                 with open(output_file, "wb") as f:
                     f.write(response.content)
-                
-                # Silent background playback using MCI (Headless)
                 self._play_headless(output_file)
             else:
                 print(f"Erro ao gerar voz: [{response.status_code}]")
         except Exception as e:
             print(f"Erro ao gerar voz: {e}")
+        finally:
+            if os.path.exists(output_file):
+                os.remove(output_file)
 
     def _play_headless(self, file_path):
         try:
@@ -88,13 +86,16 @@ class VoiceEngine:
 
     def listen(self, callback):
         self.is_listening = True
-        def audio_callback(indata, frames, time, status):
+        def audio_callback(indata, _frames, _time, _status):
             self.q.put(bytes(indata))
 
         with sd.RawInputStream(samplerate=16000, blocksize=8000, dtype='int16',
                                channels=1, callback=audio_callback):
             while self.is_listening:
-                data = self.q.get()
+                try:
+                    data = self.q.get(timeout=0.5)
+                except queue.Empty:
+                    continue
                 if self.recognizer.AcceptWaveform(data):
                     result = json.loads(self.recognizer.Result())
                     text = result.get("text", "")

@@ -139,5 +139,5 @@ class SystemControl:
             if any(app in proc.info['name'].lower() for app in apps_to_close):
                 try:
                     proc.kill()
-                except:
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
                     pass

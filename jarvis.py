@@ -5,7 +5,7 @@ import webbrowser
 from datetime import datetime, timedelta
 from voice_engine import VoiceEngine
 from command_handler import CommandHandler
-from flask_server import start_server
+from flask_server import start_server, socketio
 from dotenv import load_dotenv
 from colorama import init, Fore, Style
 
@@ -18,7 +18,7 @@ class JarvisSystem:
     def __init__(self):
         self.show_banner()
         self.ve = VoiceEngine()
-        self.ch = CommandHandler(self.ve)
+        self.ch = CommandHandler(self.ve, socketio)
         self.last_active_time = datetime.now()
         self.active_timeout = int(os.getenv("ACTIVE_TIMEOUT", 600))
         self.hud_url = f"http://localhost:{os.getenv('HUD_PORT', 5000)}"

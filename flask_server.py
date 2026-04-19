@@ -1,5 +1,5 @@
 from flask import Flask, render_template
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO
 import psutil
 import threading
 import time
@@ -9,8 +9,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'jarvis_secret'
-socketio = SocketIO(app, cors_allowed_origins="*")
+app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET', os.urandom(24).hex())
+socketio = SocketIO(app, cors_allowed_origins=f"http://localhost:{os.getenv('HUD_PORT', 5000)}")
 
 @app.route('/')
 def index():
