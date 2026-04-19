@@ -13,6 +13,7 @@ from .web import (
     WorkModeCommand, ProjectPadariaCommand, ProjectSukhafeCommand,
 )
 from .modes import FocusModeCommand, RelaxModeCommand
+from .vision_cmd import ScreenAnalysisCommand
 
 ALL_COMMANDS = [
     WeatherCommand(),
@@ -24,6 +25,7 @@ ALL_COMMANDS = [
     SearchCommand(), YouTubeCommand(), GitHubCommand(), WhatsAppCommand(),
     WorkModeCommand(), ProjectPadariaCommand(), ProjectSukhafeCommand(),
     FocusModeCommand(), RelaxModeCommand(),
+    ScreenAnalysisCommand(),
 ]
 
 REGISTRY: dict = {cmd.intent: cmd for cmd in ALL_COMMANDS}

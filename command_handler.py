@@ -50,12 +50,15 @@ class CommandHandler:
 
         logger.info("Intent: {} | entities: {}", intent, entities)
 
-        cmd = REGISTRY.get(intent)
-        if cmd:
-            override = cmd.execute(entities, self.sc)
-            response = override if override else llm_resp
+        if intent == "sequence":
+            response = self._run_sequence(entities.get("steps", []), llm_resp)
         else:
-            response = llm_resp
+            cmd = REGISTRY.get(intent)
+            if cmd:
+                override = cmd.execute(entities, self.sc)
+                response = override if override else llm_resp
+            else:
+                response = llm_resp
 
         memory_db.save(text, intent, response)
         self._emit_history()
@@ -64,6 +67,28 @@ class CommandHandler:
         self._emit_text(response)
         self.ve.falar_stark(response)
         self._emit("listening")
+
+    def _run_sequence(self, steps: list, fallback_response: str) -> str:
+        import time
+        results = []
+        for step in steps:
+            # Support "intent:param" format e.g. "search:Python"
+            if ":" in step:
+                intent_key, param = step.split(":", 1)
+                entities = {"query": param}
+            else:
+                intent_key, entities = step, {}
+
+            cmd = REGISTRY.get(intent_key)
+            if cmd:
+                override = cmd.execute(entities, self.sc)
+                if override:
+                    results.append(override)
+                time.sleep(0.5)
+            else:
+                logger.warning("[SEQ] Intent desconhecido no step: {}", intent_key)
+
+        return results[-1] if results else fallback_response
 
     def _emit(self, state: str):
         if self.socketio:
